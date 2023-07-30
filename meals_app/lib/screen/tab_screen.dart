@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:meals_app/data/dummy_data.dart';
 import 'package:meals_app/model/meal.dart';
 import 'package:meals_app/screen/categories_screen.dart';
+import 'package:meals_app/screen/fliters_screen.dart';
 import 'package:meals_app/screen/meals_screen.dart';
 import 'package:meals_app/widget/drawer.dart';
+
+const kInitialFilters = {
+  Filter.glutenFree: false,
+  Filter.lactoseFree: false,
+  Filter.vegetarian: false,
+  Filter.vegan: false,
+};
 
 class TabScreen extends StatefulWidget {
   const TabScreen({super.key});
@@ -16,6 +25,7 @@ class TabScreen extends StatefulWidget {
 class _TabScreenState extends State<TabScreen> {
   int currentIndex = 0;
   final List<Meal> _favoriteMeals = [];
+  Map<Filter, bool> _selectedFilters = kInitialFilters;
 
   void _showMessage(String text) {
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -45,18 +55,42 @@ class _TabScreenState extends State<TabScreen> {
     });
   }
 
-  void _onSelectedDrawer(String choice){
-    if (choice == 'filters'){
+  void _onSelectedDrawer(String choice) async {
+    Navigator.of(context).pop();
+    if (choice == 'filters') {
+      final result = await Navigator.of(context).push<Map<Filter, bool>>(
+        MaterialPageRoute(
+          builder: (ctx) => FiltersScreen(currentFilters: _selectedFilters,),
+        ),
+      );
 
-    } else {
-      Navigator.of(context).pop();
+      setState(() {
+        _selectedFilters = result ?? kInitialFilters;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final availableMeals = dummyMeals.where((meal) {
+      if(_selectedFilters[Filter.glutenFree]! && !meal.isGlutenFree){
+        return false;
+      }
+      if(_selectedFilters[Filter.lactoseFree]! && !meal.isLactoseFree){
+        return false;
+      }
+      if(_selectedFilters[Filter.vegetarian]! && !meal.isVegetarian){
+        return false;
+      }
+      if(_selectedFilters[Filter.vegan]! && !meal.isVegan){
+        return false;
+      }
+      return true;
+    }
+    ).toList();
     Widget mainContent = CategoriesScreen(
       onToggleFavorite: _toggleFavoriteMealsStatus,
+      availableMeals: availableMeals,
     );
     String title = 'Categories';
 
@@ -72,7 +106,9 @@ class _TabScreenState extends State<TabScreen> {
       appBar: AppBar(
         title: Text(title),
       ),
-      drawer: MainDrawer(onSelectedDrawer: _onSelectedDrawer,),
+      drawer: MainDrawer(
+        onSelectedDrawer: _onSelectedDrawer,
+      ),
       body: mainContent,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
