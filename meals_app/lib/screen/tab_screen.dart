@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:meals_app/data/dummy_data.dart';
-import 'package:meals_app/model/meal.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:meals_app/providers/dummy_provider.dart';
+import 'package:meals_app/providers/favorites_provider.dart';
 import 'package:meals_app/screen/categories_screen.dart';
 import 'package:meals_app/screen/fliters_screen.dart';
 import 'package:meals_app/screen/meals_screen.dart';
@@ -13,41 +15,18 @@ const kInitialFilters = {
   Filter.vegan: false,
 };
 
-class TabScreen extends StatefulWidget {
+class TabScreen extends ConsumerStatefulWidget {
   const TabScreen({super.key});
 
   @override
-  State<TabScreen> createState() {
+  ConsumerState<TabScreen> createState() {
     return _TabScreenState();
   }
 }
 
-class _TabScreenState extends State<TabScreen> {
+class _TabScreenState extends ConsumerState<TabScreen> {
   int currentIndex = 0;
-  final List<Meal> _favoriteMeals = [];
   Map<Filter, bool> _selectedFilters = kInitialFilters;
-
-  void _showMessage(String text) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(text),
-    ));
-  }
-
-  void _toggleFavoriteMealsStatus(Meal meal) {
-    final isExist = _favoriteMeals.contains(meal);
-    if (isExist) {
-      setState(() {
-        _favoriteMeals.remove(meal);
-        _showMessage('Meal is no longer a favorite');
-      });
-    } else {
-      setState(() {
-        _favoriteMeals.add(meal);
-        _showMessage('Marked as a favorite!');
-      });
-    }
-  }
 
   void _selectedScreen(index) {
     setState(() {
@@ -60,7 +39,9 @@ class _TabScreenState extends State<TabScreen> {
     if (choice == 'filters') {
       final result = await Navigator.of(context).push<Map<Filter, bool>>(
         MaterialPageRoute(
-          builder: (ctx) => FiltersScreen(currentFilters: _selectedFilters,),
+          builder: (ctx) => FiltersScreen(
+            currentFilters: _selectedFilters,
+          ),
         ),
       );
 
@@ -72,32 +53,32 @@ class _TabScreenState extends State<TabScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final availableMeals = dummyMeals.where((meal) {
-      if(_selectedFilters[Filter.glutenFree]! && !meal.isGlutenFree){
+    final dummyProvider = ref.watch(mealProvider);
+
+    final availableMeals = dummyProvider.where((meal) {
+      if (_selectedFilters[Filter.glutenFree]! && !meal.isGlutenFree) {
         return false;
       }
-      if(_selectedFilters[Filter.lactoseFree]! && !meal.isLactoseFree){
+      if (_selectedFilters[Filter.lactoseFree]! && !meal.isLactoseFree) {
         return false;
       }
-      if(_selectedFilters[Filter.vegetarian]! && !meal.isVegetarian){
+      if (_selectedFilters[Filter.vegetarian]! && !meal.isVegetarian) {
         return false;
       }
-      if(_selectedFilters[Filter.vegan]! && !meal.isVegan){
+      if (_selectedFilters[Filter.vegan]! && !meal.isVegan) {
         return false;
       }
       return true;
-    }
-    ).toList();
+    }).toList();
     Widget mainContent = CategoriesScreen(
-      onToggleFavorite: _toggleFavoriteMealsStatus,
       availableMeals: availableMeals,
     );
     String title = 'Categories';
 
     if (currentIndex == 1) {
+      final favoriteMeals = ref.watch(favorites);
       mainContent = MealsScreen(
-        meals: _favoriteMeals,
-        onToggleFavorite: _toggleFavoriteMealsStatus,
+        meals: favoriteMeals,
       );
       title = 'Your Favorites';
     }
@@ -115,8 +96,13 @@ class _TabScreenState extends State<TabScreen> {
         onTap: _selectedScreen,
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.category), label: 'Categories'),
-          BottomNavigationBarItem(icon: Icon(Icons.star), label: 'Favorites')
+            icon: Icon(Icons.category),
+            label: 'Categories',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.star),
+            label: 'Favorites',
+          )
         ],
       ),
     );
